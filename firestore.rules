@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /games/{gameId} {
+      allow read: if signedIn();
+      allow write: if false;
+
+      match /players/{uid} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && request.auth.uid == uid;
+        allow delete: if false;
+      }
+
+      match /rounds/{roundId} {
+        allow read: if signedIn();
+        allow write: if false;
+
+        match /pairs/{pairId} {
+          allow read: if signedIn();
+          allow write: if false;
+        }
+
+        match /matchups/{matchupId} {
+          allow read: if signedIn();
+          allow write: if false;
+        }
+
+        match /votes/{voteId} {
+          allow read: if signedIn();
+          allow create: if signedIn();
+          allow update, delete: if false;
+        }
+      }
+    }
+
+    match /figures/{figureId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+  }
+}
