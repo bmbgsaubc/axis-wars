@@ -4,9 +4,29 @@ import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "../lib/firebase";
 import { useNavigate } from "react-router-dom";
 
+type PairAssignment = {
+  id: string;
+  roundId: string;
+  figureId: string;
+  memberAUid: string;
+  memberBUid: string;
+  memberARole: "x" | "y";
+  memberBRole: "x" | "y";
+  matchupId: string;
+  xText: string | null;
+  yText: string | null;
+  complete: boolean;
+};
+
+type FigureDoc = {
+  imageUrl: string;
+  active: boolean;
+  difficulty?: "easy" | "medium" | "cursed";
+};
+
 export default function AssignmentPage() {
-  const [pair, setPair] = useState<any>(null);
-  const [figure, setFigure] = useState<any>(null);
+  const [pair, setPair] = useState<PairAssignment | null>(null);
+  const [figure, setFigure] = useState<FigureDoc | null>(null);
   const [text, setText] = useState("");
   const navigate = useNavigate();
 
@@ -15,25 +35,45 @@ export default function AssignmentPage() {
   useEffect(() => {
     async function load() {
       const gameSnap = await getDoc(doc(db, "games", gameId));
-      const roundId = gameSnap.data()?.currentRoundId;
+      const roundId = gameSnap.data()?.currentRoundId as string | undefined;
       if (!roundId) return;
 
       const pairsSnap = await getDocs(
         query(collection(db, "games", gameId, "rounds", roundId, "pairs"))
       );
 
-      const myPair = pairsSnap.docs.find((d) => {
+      const myPairDoc = pairsSnap.docs.find((d) => {
         const p = d.data();
-        return p.memberAUid === auth.currentUser?.uid || p.memberBUid === auth.currentUser?.uid;
+        return (
+          p.memberAUid === auth.currentUser?.uid ||
+          p.memberBUid === auth.currentUser?.uid
+        );
       });
 
-      if (!myPair) return;
+      if (!myPairDoc) return;
 
-      const pairData = { id: myPair.id, ...myPair.data(), roundId };
+      const data = myPairDoc.data();
+
+      const pairData: PairAssignment = {
+        id: myPairDoc.id,
+        roundId,
+        figureId: data.figureId,
+        memberAUid: data.memberAUid,
+        memberBUid: data.memberBUid,
+        memberARole: data.memberARole,
+        memberBRole: data.memberBRole,
+        matchupId: data.matchupId,
+        xText: data.xText ?? null,
+        yText: data.yText ?? null,
+        complete: data.complete ?? false,
+      };
+
       setPair(pairData);
 
       const figSnap = await getDoc(doc(db, "figures", pairData.figureId));
-      setFigure(figSnap.data());
+      if (figSnap.exists()) {
+        setFigure(figSnap.data() as FigureDoc);
+      }
     }
 
     load();
@@ -53,14 +93,19 @@ export default function AssignmentPage() {
   if (!pair || !figure) return <div style={{ padding: 24 }}>Loading…</div>;
 
   const uid = auth.currentUser!.uid;
-  const role =
-    pair.memberAUid === uid ? pair.memberARole : pair.memberBRole;
+  const role = pair.memberAUid === uid ? pair.memberARole : pair.memberBRole;
 
   return (
     <div style={{ padding: 24 }}>
       <h2>Your assignment</h2>
-      <p>You are assigning the <strong>{role.toUpperCase()}</strong> axis.</p>
-      <img src={figure.imageUrl} alt="Assigned figure" style={{ maxWidth: 500 }} />
+      <p>
+        You are assigning the <strong>{role.toUpperCase()}</strong> axis.
+      </p>
+      <img
+        src={figure.imageUrl}
+        alt="Assigned figure"
+        style={{ maxWidth: 500 }}
+      />
       <div>
         <input
           value={text}
