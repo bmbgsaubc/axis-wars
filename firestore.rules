@@ -8,7 +8,8 @@ service cloud.firestore {
 
     match /games/{gameId} {
       allow read: if signedIn();
-      allow write: if false;
+      allow create, update: if signedIn();
+      allow delete: if false;
 
       match /players/{uid} {
         allow read: if signedIn();

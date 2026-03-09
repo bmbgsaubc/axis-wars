@@ -197,6 +197,27 @@ export const submitAxis = onCall(async (req) => {
 
   await pairRef.update(updates);
 
+  const roundRef = db.collection("games").doc(gameId).collection("rounds").doc(roundId);
+
+  const allPairsSnap = await roundRef.collection("pairs").get();
+  const allComplete = allPairsSnap.docs.every((d) => d.data().complete === true);
+
+  if (allComplete) {
+    const matchupsSnap = await roundRef.collection("matchups").get();
+    const firstMatchup = matchupsSnap.docs[0];
+
+    if (firstMatchup) {
+      await db.collection("games").doc(gameId).update({
+        status: "voting",
+        currentMatchupId: firstMatchup.id,
+      });
+
+      await firstMatchup.ref.update({
+        state: "live",
+      });
+    }
+  }
+
   return { ok: true };
 });
 
