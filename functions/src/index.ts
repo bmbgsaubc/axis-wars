@@ -207,6 +207,10 @@ export const submitAxis = onCall(async (req) => {
     const firstMatchup = matchupsSnap.docs[0];
 
     if (firstMatchup) {
+      await roundRef.update({
+        status: "voting",
+      });
+
       await db.collection("games").doc(gameId).update({
         status: "voting",
         currentMatchupId: firstMatchup.id,

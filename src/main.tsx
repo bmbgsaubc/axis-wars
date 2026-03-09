@@ -5,6 +5,7 @@ import JoinPage from "./pages/JoinPage";
 import WaitingPage from "./pages/WaitingPage";
 import AssignmentPage from "./pages/AssignmentPage";
 import HostPage from "./pages/HostPage";
+import VotePage from "./pages/VotePage";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -14,6 +15,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Route path="/waiting" element={<WaitingPage />} />
         <Route path="/assignment" element={<AssignmentPage />} />
         <Route path="/host" element={<HostPage />} />
+        <Route path="/vote" element={<VotePage />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
