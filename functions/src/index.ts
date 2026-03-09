@@ -46,6 +46,20 @@ export const startRound = onCall(async (req) => {
     throw new HttpsError("permission-denied", "Only host can start round");
   }
 
+  const currentRoundId = game.currentRoundId;
+  if (currentRoundId) {
+    const currentRoundSnap = await gameRef.collection("rounds").doc(currentRoundId).get();
+    if (currentRoundSnap.exists) {
+      const currentRound = currentRoundSnap.data();
+      if (currentRound?.status !== "complete") {
+        throw new HttpsError(
+          "failed-precondition",
+          `Current round (${currentRoundId}) is not complete yet.`
+        );
+      }
+    }
+  }
+
   const playersSnap = await gameRef.collection("players").get();
   const players = playersSnap.docs.map((d) => ({ uid: d.id, ...d.data() })) as Array<{uid: string; name: string}>;
 
@@ -389,6 +403,7 @@ export const closeMatchupVoting = onCall(async (req) => {
 
     await gameRef.update({
       status: "leaderboard",
+      currentMatchupId: null,
     });
   }
 
