@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, db, functions, ensureAnonAuth } from "../lib/firebase";
+import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 
 type PairDoc = {
   figureId: string;
@@ -20,19 +21,27 @@ type FigureDoc = {
 };
 
 function FigureCard({
+  title,
   imageUrl,
   xText,
   yText,
-  title,
+  votes,
+  onVote,
+  disabled,
 }: {
+  title: string;
   imageUrl: string;
   xText: string;
   yText: string;
-  title: string;
+  votes: number;
+  onVote: () => void;
+  disabled: boolean;
 }) {
   return (
     <div style={{ width: 500 }}>
-      <h3>{title}</h3>
+      <h3>
+        {title} — Votes: {votes}
+      </h3>
       <div style={{ position: "relative", width: 500 }}>
         <img
           src={imageUrl}
@@ -69,93 +78,154 @@ function FigureCard({
           {yText}
         </div>
       </div>
+      <button onClick={onVote} disabled={disabled} style={{ marginTop: 12 }}>
+        Vote {title}
+      </button>
     </div>
   );
 }
 
 export default function VotePage() {
   const gameId = localStorage.getItem("gameId") || "demo-game";
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [figureUrl, setFigureUrl] = useState("");
+
+  const [roundId, setRoundId] = useState("");
+  const [matchupId, setMatchupId] = useState("");
+  const [matchup, setMatchup] = useState<MatchupDoc | null>(null);
   const [pairA, setPairA] = useState<PairDoc | null>(null);
   const [pairB, setPairB] = useState<PairDoc | null>(null);
+  const [figureUrl, setFigureUrl] = useState("");
+  const [votesA, setVotesA] = useState(0);
+  const [votesB, setVotesB] = useState(0);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [message, setMessage] = useState("Loading...");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
+    async function init() {
       try {
-        setLoading(true);
-        setError("");
-
-        const gameSnap = await getDoc(doc(db, "games", gameId));
-        const game = gameSnap.data();
-
-        if (!game) throw new Error("Game not found.");
-        if (!game.currentRoundId) throw new Error("No current round found.");
-        if (!game.currentMatchupId) throw new Error("No current matchup found.");
-
-        const roundId = game.currentRoundId;
-        const matchupId = game.currentMatchupId;
-
-        const matchupSnap = await getDoc(
-          doc(db, "games", gameId, "rounds", roundId, "matchups", matchupId)
-        );
-        const matchup = matchupSnap.data() as MatchupDoc | undefined;
-
-        if (!matchup) throw new Error("Matchup not found.");
-
-        const pairASnap = await getDoc(
-          doc(db, "games", gameId, "rounds", roundId, "pairs", matchup.pairAId)
-        );
-        const pairBSnap = await getDoc(
-          doc(db, "games", gameId, "rounds", roundId, "pairs", matchup.pairBId)
-        );
-
-        const pairAData = pairASnap.data() as PairDoc | undefined;
-        const pairBData = pairBSnap.data() as PairDoc | undefined;
-
-        if (!pairAData || !pairBData) {
-          throw new Error("One or both pair docs are missing.");
-        }
-
-        const figSnap = await getDoc(doc(db, "figures", matchup.figureId));
-        const fig = figSnap.data() as FigureDoc | undefined;
-
-        if (!fig) throw new Error("Figure doc not found.");
-
-        setFigureUrl(fig.imageUrl);
-        setPairA(pairAData);
-        setPairB(pairBData);
-      } catch (err: any) {
-        console.error(err);
-        setError(err?.message || "Failed to load voting page.");
-      } finally {
-        setLoading(false);
+        await ensureAnonAuth();
+      } catch (error: any) {
+        console.error(error);
+        setMessage(error?.message || "Failed to sign in.");
       }
     }
+    init();
+  }, []);
 
-    load();
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "games", gameId), async (snap) => {
+      const game = snap.data();
+      if (!game) return;
+
+      if (!game.currentRoundId || !game.currentMatchupId) {
+        setMessage("No active matchup yet.");
+        setLoading(false);
+        return;
+      }
+
+      setRoundId(game.currentRoundId);
+      setMatchupId(game.currentMatchupId);
+
+      const matchupSnap = await getDoc(
+        doc(db, "games", gameId, "rounds", game.currentRoundId, "matchups", game.currentMatchupId)
+      );
+      const matchupData = matchupSnap.data() as MatchupDoc | undefined;
+
+      if (!matchupData) {
+        setMessage("Matchup not found.");
+        setLoading(false);
+        return;
+      }
+
+      setMatchup(matchupData);
+
+      const pairASnap = await getDoc(
+        doc(db, "games", gameId, "rounds", game.currentRoundId, "pairs", matchupData.pairAId)
+      );
+      const pairBSnap = await getDoc(
+        doc(db, "games", gameId, "rounds", game.currentRoundId, "pairs", matchupData.pairBId)
+      );
+      const figSnap = await getDoc(doc(db, "figures", matchupData.figureId));
+
+      setPairA(pairASnap.data() as PairDoc);
+      setPairB(pairBSnap.data() as PairDoc);
+      setFigureUrl((figSnap.data() as FigureDoc).imageUrl);
+      setLoading(false);
+    });
+
+    return () => unsub();
   }, [gameId]);
 
+  useEffect(() => {
+    if (!roundId || !matchupId || !matchup) return;
+
+    const votesQ = query(
+      collection(db, "games", gameId, "rounds", roundId, "votes"),
+      where("matchupId", "==", matchupId)
+    );
+
+    const unsub = onSnapshot(votesQ, (snap) => {
+      let a = 0;
+      let b = 0;
+      const uid = auth.currentUser?.uid;
+
+      for (const docSnap of snap.docs) {
+        const vote = docSnap.data();
+        if (vote.votedForPairId === matchup.pairAId) a++;
+        if (vote.votedForPairId === matchup.pairBId) b++;
+        if (vote.voterUid === uid) setHasVoted(true);
+      }
+
+      setVotesA(a);
+      setVotesB(b);
+    });
+
+    return () => unsub();
+  }, [gameId, roundId, matchupId, matchup]);
+
+  async function voteFor(pairId: string) {
+    try {
+      await ensureAnonAuth();
+      const fn = httpsCallable(functions, "castVote");
+      await fn({
+        gameId,
+        roundId,
+        matchupId,
+        votedForPairId: pairId,
+      });
+      setHasVoted(true);
+      setMessage("Vote submitted.");
+    } catch (error: any) {
+      console.error(error);
+      setMessage(error?.message || "Failed to vote.");
+    }
+  }
+
   if (loading) return <div style={{ padding: 24 }}>Loading vote screen…</div>;
-  if (error) return <div style={{ padding: 24 }}>Error: {error}</div>;
-  if (!pairA || !pairB) return <div style={{ padding: 24 }}>No matchup data.</div>;
+  if (!matchup || !pairA || !pairB) return <div style={{ padding: 24 }}>{message}</div>;
 
   return (
     <div style={{ padding: 24 }}>
       <h2>Vote for the better graph</h2>
+      {message && <p>{message}</p>}
       <div style={{ display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap" }}>
         <FigureCard
           title="Pair A"
           imageUrl={figureUrl}
           xText={pairA.xText || ""}
           yText={pairA.yText || ""}
+          votes={votesA}
+          onVote={() => voteFor(matchup.pairAId)}
+          disabled={hasVoted}
         />
         <FigureCard
           title="Pair B"
           imageUrl={figureUrl}
           xText={pairB.xText || ""}
           yText={pairB.yText || ""}
+          votes={votesB}
+          onVote={() => voteFor(matchup.pairBId)}
+          disabled={hasVoted}
         />
       </div>
     </div>

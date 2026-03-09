@@ -262,11 +262,31 @@ export const castVote = onCall(async (req) => {
     votedForPairId: string;
   };
 
+  if (!gameId || !roundId || !matchupId || !votedForPairId) {
+    throw new HttpsError("invalid-argument", "Missing required vote data");
+  }
+
   const roundRef = db.collection("games").doc(gameId).collection("rounds").doc(roundId);
+  const matchupRef = roundRef.collection("matchups").doc(matchupId);
   const voteRef = roundRef.collection("votes").doc(`${matchupId}_${uid}`);
-  const existing = await voteRef.get();
-  if (existing.exists) {
-    throw new HttpsError("already-exists", "Already voted");
+
+  const matchupSnap = await matchupRef.get();
+  if (!matchupSnap.exists) {
+    throw new HttpsError("not-found", "Matchup not found");
+  }
+
+  const matchup = matchupSnap.data()!;
+  if (matchup.state !== "live") {
+    throw new HttpsError("failed-precondition", "Voting is not open for this matchup");
+  }
+
+  if (votedForPairId !== matchup.pairAId && votedForPairId !== matchup.pairBId) {
+    throw new HttpsError("invalid-argument", "Invalid pair selected");
+  }
+
+  const existingVote = await voteRef.get();
+  if (existingVote.exists) {
+    throw new HttpsError("already-exists", "You already voted for this matchup");
   }
 
   await voteRef.set({
@@ -291,31 +311,47 @@ export const closeMatchupVoting = onCall(async (req) => {
 
   const gameRef = db.collection("games").doc(gameId);
   const gameSnap = await gameRef.get();
-  if (gameSnap.data()?.hostUid !== uid) {
-    throw new HttpsError("permission-denied", "Only host can do this");
+
+  if (!gameSnap.exists) {
+    throw new HttpsError("not-found", "Game not found");
+  }
+
+  const game = gameSnap.data()!;
+  if (game.hostUid !== uid) {
+    throw new HttpsError("permission-denied", "Only host can close voting");
   }
 
   const roundRef = gameRef.collection("rounds").doc(roundId);
   const matchupRef = roundRef.collection("matchups").doc(matchupId);
   const matchupSnap = await matchupRef.get();
+
+  if (!matchupSnap.exists) {
+    throw new HttpsError("not-found", "Matchup not found");
+  }
+
   const matchup = matchupSnap.data()!;
-  
-  const votesSnap = await roundRef.collection("votes")
+
+  const votesSnap = await roundRef
+    .collection("votes")
     .where("matchupId", "==", matchupId)
     .get();
 
   let votesA = 0;
   let votesB = 0;
+
   for (const doc of votesSnap.docs) {
-    const v = doc.data();
-    if (v.votedForPairId === matchup.pairAId) votesA++;
-    if (v.votedForPairId === matchup.pairBId) votesB++;
+    const vote = doc.data();
+    if (vote.votedForPairId === matchup.pairAId) votesA++;
+    if (vote.votedForPairId === matchup.pairBId) votesB++;
   }
 
   const winnerPairId = votesA >= votesB ? matchup.pairAId : matchup.pairBId;
 
-  const pairA = await roundRef.collection("pairs").doc(matchup.pairAId).get();
-  const pairB = await roundRef.collection("pairs").doc(matchup.pairBId).get();
+  const pairASnap = await roundRef.collection("pairs").doc(matchup.pairAId).get();
+  const pairBSnap = await roundRef.collection("pairs").doc(matchup.pairBId).get();
+
+  const pairA = pairASnap.data()!;
+  const pairB = pairBSnap.data()!;
 
   const batch = db.batch();
 
@@ -326,23 +362,40 @@ export const closeMatchupVoting = onCall(async (req) => {
     winnerPairId,
   });
 
-  // Score = total votes received by figure
-  const pA = pairA.data()!;
-  const pB = pairB.data()!;
-
+  // Add vote totals as points to both members of each pair
   const addScore = (playerUid: string, delta: number) => {
-    const ref = gameRef.collection("players").doc(playerUid);
-    batch.update(ref, {
+    const playerRef = gameRef.collection("players").doc(playerUid);
+    batch.update(playerRef, {
       score: admin.firestore.FieldValue.increment(delta),
     });
   };
 
-  addScore(pA.memberAUid, votesA);
-  addScore(pA.memberBUid, votesA);
-  addScore(pB.memberAUid, votesB);
-  addScore(pB.memberBUid, votesB);
+  addScore(pairA.memberAUid, votesA);
+  addScore(pairA.memberBUid, votesA);
+  addScore(pairB.memberAUid, votesB);
+  addScore(pairB.memberBUid, votesB);
 
   await batch.commit();
 
-  return { ok: true, votesA, votesB, winnerPairId };
+  const allMatchupsSnap = await roundRef.collection("matchups").get();
+  const allClosed = allMatchupsSnap.docs.every(
+    (d) => d.data().state === "closed"
+  );
+
+  if (allClosed) {
+    await roundRef.update({
+      status: "complete",
+    });
+
+    await gameRef.update({
+      status: "leaderboard",
+    });
+  }
+
+  return {
+    ok: true,
+    votesA,
+    votesB,
+    winnerPairId,
+  };
 });
