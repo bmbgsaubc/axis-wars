@@ -8,6 +8,7 @@ import HostPage from "./pages/HostPage";
 import VotePage from "./pages/VotePage";
 import SubmittedPage from "./pages/SubmittedPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
+import GamePage from "./pages/GamePage";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -20,6 +21,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Route path="/host" element={<HostPage />} />
         <Route path="/vote" element={<VotePage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/game" element={<GamePage />} />
+        <Route path="/display" element={<GamePage />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
