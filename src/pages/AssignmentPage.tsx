@@ -68,6 +68,21 @@ export default function AssignmentPage() {
         complete: data.complete ?? false,
       };
 
+      const uid = auth.currentUser?.uid;
+      const myRoleText =
+        pairData.memberAUid === uid
+          ? pairData.memberARole === "x"
+            ? pairData.xText
+            : pairData.yText
+          : pairData.memberBRole === "x"
+            ? pairData.xText
+            : pairData.yText;
+
+      if (myRoleText) {
+        navigate("/submitted");
+        return;
+      }
+
       setPair(pairData);
 
       const figSnap = await getDoc(doc(db, "figures", pairData.figureId));
