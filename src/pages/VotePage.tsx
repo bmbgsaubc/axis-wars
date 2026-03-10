@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions, ensureAnonAuth } from "../lib/firebase";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 type PairDoc = {
   figureId: string;
@@ -87,6 +88,7 @@ function FigureCard({
 
 export default function VotePage() {
   const gameId = localStorage.getItem("gameId") || "demo-game";
+  const navigate = useNavigate();
 
   const [roundId, setRoundId] = useState("");
   const [matchupId, setMatchupId] = useState("");
@@ -116,6 +118,11 @@ export default function VotePage() {
     const unsub = onSnapshot(doc(db, "games", gameId), async (snap) => {
       const game = snap.data();
       if (!game) return;
+
+      if (game.status === "leaderboard") {
+        navigate("/leaderboard");
+        return;
+      }
 
       if (!game.currentRoundId || !game.currentMatchupId) {
         setMessage("No active matchup yet.");
@@ -154,7 +161,7 @@ export default function VotePage() {
     });
 
     return () => unsub();
-  }, [gameId]);
+  }, [gameId, navigate]);
 
   useEffect(() => {
     if (!roundId || !matchupId || !matchup) return;
