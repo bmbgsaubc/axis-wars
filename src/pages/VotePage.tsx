@@ -39,26 +39,46 @@ function FigureCard({
   disabled: boolean;
 }) {
   return (
-    <div style={{ width: 500 }}>
-      <h3>
-        {title} — Votes: {votes}
+    <div style={{ width: "100%", maxWidth: 340 }}>
+      <h3 style={{ margin: "0 0 12px", fontSize: 22, color: "#111", textAlign: "center" }}>
+        {title}
       </h3>
-      <div style={{ position: "relative", width: 500 }}>
+      <p
+        style={{
+          margin: "0 0 14px",
+          fontSize: 12,
+          letterSpacing: "0.16em",
+          textTransform: "uppercase",
+          color: "#888",
+          textAlign: "center",
+        }}
+      >
+        Votes: {votes}
+      </p>
+      <div style={{ position: "relative", width: "100%" }}>
         <img
           src={imageUrl}
           alt={title}
-          style={{ width: "100%", display: "block", background: "white" }}
+          style={{
+            width: "100%",
+            display: "block",
+            background: "white",
+            borderRadius: 22,
+          }}
         />
         <div
           style={{
             position: "absolute",
-            bottom: 8,
+            bottom: 12,
             left: "50%",
             transform: "translateX(-50%)",
             background: "rgba(255,255,255,0.9)",
-            padding: "4px 8px",
-            borderRadius: 6,
+            padding: "8px 12px",
+            borderRadius: 12,
             fontWeight: 600,
+            fontSize: 14,
+            textAlign: "center",
+            minWidth: 120,
           }}
         >
           {xText}
@@ -67,19 +87,35 @@ function FigureCard({
           style={{
             position: "absolute",
             top: "50%",
-            left: -40,
+            left: -30,
             transform: "translateY(-50%) rotate(-90deg)",
             transformOrigin: "left top",
             background: "rgba(255,255,255,0.9)",
-            padding: "4px 8px",
-            borderRadius: 6,
+            padding: "8px 12px",
+            borderRadius: 12,
             fontWeight: 600,
+            fontSize: 14,
           }}
         >
           {yText}
         </div>
       </div>
-      <button onClick={onVote} disabled={disabled} style={{ marginTop: 12 }}>
+      <button
+        onClick={onVote}
+        disabled={disabled}
+        style={{
+          width: "100%",
+          height: 52,
+          marginTop: 16,
+          border: "none",
+          borderRadius: 16,
+          background: disabled ? "#d9d9d9" : "#111",
+          color: "#fff",
+          fontSize: 16,
+          fontWeight: 600,
+          letterSpacing: "0.04em",
+        }}
+      >
         Vote {title}
       </button>
     </div>
@@ -132,6 +168,10 @@ export default function VotePage() {
 
       setRoundId(game.currentRoundId);
       setMatchupId(game.currentMatchupId);
+      setHasVoted(false);
+      setVotesA(0);
+      setVotesB(0);
+      setMessage("Choose the better graph.");
 
       const matchupSnap = await getDoc(
         doc(db, "games", gameId, "rounds", game.currentRoundId, "matchups", game.currentMatchupId)
@@ -175,16 +215,18 @@ export default function VotePage() {
       let a = 0;
       let b = 0;
       const uid = auth.currentUser?.uid;
+      let nextHasVoted = false;
 
       for (const docSnap of snap.docs) {
         const vote = docSnap.data();
         if (vote.votedForPairId === matchup.pairAId) a++;
         if (vote.votedForPairId === matchup.pairBId) b++;
-        if (vote.voterUid === uid) setHasVoted(true);
+        if (vote.voterUid === uid) nextHasVoted = true;
       }
 
       setVotesA(a);
       setVotesB(b);
+      setHasVoted(nextHasVoted);
     });
 
     return () => unsub();
@@ -208,14 +250,92 @@ export default function VotePage() {
     }
   }
 
-  if (loading) return <div style={{ padding: 24 }}>Loading vote screen…</div>;
-  if (!matchup || !pairA || !pairB) return <div style={{ padding: 24 }}>{message}</div>;
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#fff",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "24px 20px",
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: 360, textAlign: "center", color: "#444" }}>
+          Loading vote screen...
+        </div>
+      </div>
+    );
+  }
+
+  if (!matchup || !pairA || !pairB) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#fff",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "24px 20px",
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: 360, textAlign: "center", color: "#444" }}>
+          {message}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: 24 }}>
-      <h2>Vote for the better graph</h2>
-      {message && <p>{message}</p>}
-      <div style={{ display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#fff",
+        display: "flex",
+        justifyContent: "center",
+        padding: "24px 20px 40px",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 780,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 16,
+          textAlign: "center",
+        }}
+      >
+        <div>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 12,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "#888",
+            }}
+          >
+            Live matchup
+          </p>
+          <h2 style={{ margin: "10px 0 0", fontSize: 30, color: "#111" }}>
+            Vote for the better graph
+          </h2>
+        </div>
+        {message ? <p style={{ margin: 0, color: "#666" }}>{message}</p> : null}
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            gap: 28,
+            alignItems: "flex-start",
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
         <FigureCard
           title="Pair A"
           imageUrl={figureUrl}
@@ -234,6 +354,7 @@ export default function VotePage() {
           onVote={() => voteFor(matchup.pairBId)}
           disabled={hasVoted}
         />
+        </div>
       </div>
     </div>
   );

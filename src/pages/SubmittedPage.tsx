@@ -74,10 +74,41 @@ export default function SubmittedPage() {
   }, [gameId, navigate]);
 
   return (
-    <div style={{ padding: 24 }}>
-      <h2>Submission received</h2>
-      <p>{message}</p>
-      <p>Current status: {status}</p>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#fff",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "24px 20px",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 360,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
+          gap: 14,
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: 28, color: "#111" }}>Submission received</h2>
+        <p style={{ margin: 0, fontSize: 15, color: "#666", lineHeight: 1.5 }}>{message}</p>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "#999",
+          }}
+        >
+          Status: {status}
+        </p>
+      </div>
     </div>
   );
 }
