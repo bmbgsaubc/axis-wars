@@ -31,6 +31,11 @@ type MatchupDoc = {
 
 export default function HostPage() {
   const gameId = localStorage.getItem("gameId") || "demo-game";
+  const joinUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString();
+  const displayUrl = new URL(
+    `${import.meta.env.BASE_URL.replace(/\/$/, "")}/game?gameId=${encodeURIComponent(gameId)}`,
+    window.location.origin
+  ).toString();
 
   const [message, setMessage] = useState("Signing in...");
   const [game, setGame] = useState<GameDoc | null>(null);
@@ -205,6 +210,13 @@ export default function HostPage() {
       </div>
 
       {message && <p>{message}</p>}
+
+      <div style={{ marginTop: 24 }}>
+        <h2>Room Links</h2>
+        <p>Room code: {gameId}</p>
+        <p>Join URL: {joinUrl}</p>
+        <p>Projector URL: {displayUrl}</p>
+      </div>
 
       <div style={{ marginTop: 24 }}>
         <h2>Game State</h2>
