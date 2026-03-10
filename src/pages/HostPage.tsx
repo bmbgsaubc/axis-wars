@@ -110,6 +110,18 @@ export default function HostPage() {
     }
   }
 
+  async function endGame() {
+    try {
+      await ensureAnonAuth();
+      const fn = httpsCallable(functions, "endGame");
+      await fn({ gameId });
+      setMessage("Game ended.");
+    } catch (error: any) {
+      console.error(error);
+      setMessage(error?.message || "Failed to end game.");
+    }
+  }
+
   async function closeCurrentVoting() {
     try {
       await ensureAnonAuth();
@@ -184,9 +196,12 @@ export default function HostPage() {
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <button onClick={claimHost}>Claim Host</button>
-        <button onClick={startRound}>Start Round</button>
+        <button onClick={startRound}>
+          {game?.roundNumber ? "Play Another Round" : "Start Round"}
+        </button>
         <button onClick={closeCurrentVoting}>Close Current Voting</button>
         <button onClick={openNextMatchup}>Open Next Matchup</button>
+        <button onClick={endGame}>End Game</button>
       </div>
 
       {message && <p>{message}</p>}

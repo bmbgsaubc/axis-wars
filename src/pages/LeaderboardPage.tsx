@@ -21,6 +21,7 @@ export default function LeaderboardPage() {
   const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [message, setMessage] = useState("");
   const [startingRound, setStartingRound] = useState(false);
+  const [endingGame, setEndingGame] = useState(false);
   const navigate = useNavigate();
   const gameId = localStorage.getItem("gameId")!;
 
@@ -99,12 +100,30 @@ export default function LeaderboardPage() {
     }
   }
 
+  async function endGame() {
+    try {
+      setEndingGame(true);
+      setMessage("");
+      await ensureAnonAuth();
+      const fn = httpsCallable(functions, "endGame");
+      await fn({ gameId });
+    } catch (error: any) {
+      setMessage(error?.message || "Failed to end game.");
+    } finally {
+      setEndingGame(false);
+    }
+  }
+
   const isHost = !!game?.hostUid && game.hostUid === auth.currentUser?.uid;
 
   return (
     <div style={{ padding: 24 }}>
-      <h1>Leaderboard</h1>
-      <p>Round {game?.roundNumber ?? 0} complete.</p>
+      <h1>{game?.status === "finished" ? "Final Leaderboard" : "Leaderboard"}</h1>
+      <p>
+        {game?.status === "finished"
+          ? "Game over."
+          : `Round ${game?.roundNumber ?? 0} complete.`}
+      </p>
 
       {players.length === 0 ? (
         <p>No player scores yet.</p>
@@ -137,12 +156,26 @@ export default function LeaderboardPage() {
 
       {isHost ? (
         <div style={{ marginTop: 24 }}>
-          <button onClick={startNextRound} disabled={startingRound || game?.status !== "leaderboard"}>
-            {startingRound ? "Starting..." : "Start Next Round"}
+          <button
+            onClick={startNextRound}
+            disabled={startingRound || endingGame || game?.status !== "leaderboard"}
+          >
+            {startingRound ? "Starting..." : "Play Another Round"}
+          </button>
+          <button
+            onClick={endGame}
+            disabled={startingRound || endingGame || game?.status === "finished"}
+            style={{ marginLeft: 12 }}
+          >
+            {endingGame ? "Ending..." : "End Game"}
           </button>
         </div>
       ) : (
-        <p style={{ marginTop: 24 }}>Waiting for the host to start the next round.</p>
+        <p style={{ marginTop: 24 }}>
+          {game?.status === "finished"
+            ? "The game has ended."
+            : "Waiting for the host to start the next round."}
+        </p>
       )}
 
       {message ? <p>{message}</p> : null}

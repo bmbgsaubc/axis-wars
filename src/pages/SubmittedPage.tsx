@@ -21,8 +21,8 @@ export default function SubmittedPage() {
         return;
       }
 
-      if (data.status === "leaderboard") {
-        setMessage("Round complete. Waiting for the next screen.");
+      if (data.status === "leaderboard" || data.status === "finished") {
+        navigate("/leaderboard");
         return;
       }
 

@@ -16,7 +16,9 @@ export default function WaitingPage() {
 
       if (data.status === "submitting") navigate("/assignment");
       if (data.status === "voting") navigate("/vote");
-      if (data.status === "leaderboard") navigate("/leaderboard");
+      if (data.status === "leaderboard" || data.status === "finished") {
+        navigate("/leaderboard");
+      }
     });
 
     return () => unsub();

@@ -46,6 +46,10 @@ export const startRound = onCall(async (req) => {
     throw new HttpsError("permission-denied", "Only host can start round");
   }
 
+  if (game.status === "finished") {
+    throw new HttpsError("failed-precondition", "Game has already ended.");
+  }
+
   const currentRoundId = game.currentRoundId;
   if (currentRoundId) {
     const currentRoundSnap = await gameRef.collection("rounds").doc(currentRoundId).get();
@@ -93,6 +97,7 @@ export const startRound = onCall(async (req) => {
 
   // Pair pairs into matchups
   const shuffledPairs = shuffle(pairs);
+  const matchupCount = Math.floor(shuffledPairs.length / 2);
   const matchups: Array<{
     matchupId: string;
     pairAId: string;
@@ -101,10 +106,28 @@ export const startRound = onCall(async (req) => {
   }> = [];
 
   const figuresSnap = await db.collection("figures").where("active", "==", true).get();
-  const figureIds = shuffle(figuresSnap.docs.map((d) => d.id));
+  const previousRoundsSnap = await gameRef.collection("rounds").get();
+  const usedFigureIds = new Set<string>();
 
-  if (figureIds.length < Math.floor(shuffledPairs.length / 2)) {
-    throw new HttpsError("failed-precondition", "Not enough figures");
+  for (const roundDoc of previousRoundsSnap.docs) {
+    const priorMatchupsSnap = await roundDoc.ref.collection("matchups").get();
+    for (const matchupDoc of priorMatchupsSnap.docs) {
+      const figureId = matchupDoc.data().figureId;
+      if (figureId) usedFigureIds.add(figureId);
+    }
+  }
+
+  const figureIds = shuffle(
+    figuresSnap.docs
+      .map((d) => d.id)
+      .filter((figureId) => !usedFigureIds.has(figureId))
+  );
+
+  if (figureIds.length < matchupCount) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Not enough unused figures available for another round."
+    );
   }
 
   let figureIndex = 0;
@@ -165,6 +188,30 @@ export const startRound = onCall(async (req) => {
   await batch.commit();
 
   return { ok: true, roundId };
+});
+
+export const endGame = onCall(async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Must be signed in");
+
+  const { gameId } = req.data as { gameId: string };
+  if (!gameId) throw new HttpsError("invalid-argument", "Missing gameId");
+
+  const gameRef = db.collection("games").doc(gameId);
+  const gameSnap = await gameRef.get();
+  if (!gameSnap.exists) throw new HttpsError("not-found", "Game not found");
+
+  const game = gameSnap.data()!;
+  if (game.hostUid !== uid) {
+    throw new HttpsError("permission-denied", "Only host can end the game");
+  }
+
+  await gameRef.update({
+    status: "finished",
+    currentMatchupId: null,
+  });
+
+  return { ok: true };
 });
 
 export const submitAxis = onCall(async (req) => {

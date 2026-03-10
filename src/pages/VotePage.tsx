@@ -119,7 +119,7 @@ export default function VotePage() {
       const game = snap.data();
       if (!game) return;
 
-      if (game.status === "leaderboard") {
+      if (game.status === "leaderboard" || game.status === "finished") {
         navigate("/leaderboard");
         return;
       }
