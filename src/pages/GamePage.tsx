@@ -305,9 +305,8 @@ function FigureDisplay({
           style={{
             position: "absolute",
             top: "50%",
-            left: 34,
-            transform: "translate(-50%, -50%) rotate(-90deg)",
-            transformOrigin: "center",
+            left: 40,
+            transform: "translate(-100%, -50%)",
             maxWidth: 260,
             background: "rgba(255,255,255,0.95)",
             color: "#111111",
@@ -315,7 +314,8 @@ function FigureDisplay({
             borderRadius: 16,
             fontSize: 18,
             fontWeight: 700,
-            textAlign: "center",
+            textAlign: "right",
+            whiteSpace: "nowrap",
             boxShadow: "0 12px 30px rgba(17, 17, 17, 0.12)",
           }}
         >
