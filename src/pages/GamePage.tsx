@@ -88,39 +88,47 @@ function MetricCard({
   value,
   hint,
   compactValue = false,
+  compact = false,
 }: {
   label: string;
   value: string;
   hint?: string;
   compactValue?: boolean;
+  compact?: boolean;
 }) {
   return (
     <div
       style={{
         ...panelStyle("rgba(17, 17, 17, 0.08)"),
-        padding: "20px 22px",
-        minHeight: 138,
+        padding: compact ? "14px 16px" : "20px 22px",
+        minHeight: compact ? 96 : 138,
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
       }}
     >
       <p
-        style={{
-          margin: 0,
-          fontSize: 13,
-          letterSpacing: "0.16em",
-          textTransform: "uppercase",
-          color: "#6c727f",
-        }}
+          style={{
+            margin: 0,
+            fontSize: compact ? 11 : 13,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "#6c727f",
+          }}
       >
         {label}
       </p>
       <div>
         <h3
           style={{
-            margin: "16px 0 0",
-            fontSize: compactValue ? "clamp(1rem, 1.5vw, 1.25rem)" : "clamp(2rem, 3vw, 2.8rem)",
+            margin: compact ? "10px 0 0" : "16px 0 0",
+            fontSize: compact
+              ? compactValue
+                ? "clamp(0.9rem, 1.2vw, 1.05rem)"
+                : "clamp(1.4rem, 2vw, 1.9rem)"
+              : compactValue
+                ? "clamp(1rem, 1.5vw, 1.25rem)"
+                : "clamp(2rem, 3vw, 2.8rem)",
             lineHeight: 1,
             color: "#111111",
             wordBreak: "break-word",
@@ -249,12 +257,13 @@ function FigureDisplay({
         <h3 style={{ margin: 0, fontSize: 28, color: "#111111" }}>{title}</h3>
         <div
           style={{
-            padding: "8px 14px",
+            padding: "12px 18px",
             borderRadius: 999,
-            background: highlight ? "#111111" : "#eef0f4",
-            color: highlight ? "#ffffff" : "#111111",
+            background: highlight ? "#c96b2c" : "#dfe8f6",
+            color: highlight ? "#ffffff" : "#1f3b63",
             fontWeight: 700,
-            fontSize: 16,
+            fontSize: 24,
+            lineHeight: 1,
           }}
         >
           {votes} vote{votes === 1 ? "" : "s"}
@@ -296,7 +305,7 @@ function FigureDisplay({
           style={{
             position: "absolute",
             top: "50%",
-            left: 14,
+            left: 34,
             transform: "translate(-50%, -50%) rotate(-90deg)",
             transformOrigin: "center",
             maxWidth: 260,
@@ -518,7 +527,6 @@ export default function GamePage() {
 
   const joinUrl = getJoinUrl();
   const signedInCount = players.length;
-  const connectedCount = players.filter((player) => player.connected).length;
   const submittedCount = pairs.reduce((count, pair) => {
     return count + (pair.xText ? 1 : 0) + (pair.yText ? 1 : 0);
   }, 0);
@@ -913,13 +921,13 @@ export default function GamePage() {
         <MetricCard
           label="Players signed in"
           value={`${signedInCount}`}
-          hint={connectedCount === signedInCount ? "Everyone is connected." : `${connectedCount} currently connected.`}
+          compact
         />
         <MetricCard
           label="Join URL"
           value={joinUrl.replace(/^https?:\/\//, "")}
-          hint="Open the link, enter the room code, and wait for the host."
           compactValue
+          compact
         />
         <MetricCard
           label="Round"
@@ -929,11 +937,12 @@ export default function GamePage() {
               ? "The next round begins when the host starts."
               : `Status: ${game?.status ?? "loading"}`
           }
+          compact
         />
         <MetricCard
           label="Display sync"
-          value="Live"
-          hint="This screen updates automatically as the game progresses."
+          value="On"
+          compact
         />
       </div>
 
@@ -1159,30 +1168,14 @@ export default function GamePage() {
                     border: "1px solid #e3e7ef",
                     minWidth: 150,
                   }}
-                >
-                  <p style={{ margin: 0, fontSize: 12, textTransform: "uppercase", color: "#6c727f" }}>
-                    Votes in
-                  </p>
-                  <p style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 700 }}>
-                    {liveVotes.total}/{signedInCount}
-                  </p>
-                </div>
-                <div
-                  style={{
-                    padding: "14px 18px",
-                    borderRadius: 18,
-                    background: "#f4f6f9",
-                    border: "1px solid #e3e7ef",
-                    minWidth: 150,
-                  }}
-                >
-                  <p style={{ margin: 0, fontSize: 12, textTransform: "uppercase", color: "#6c727f" }}>
-                    Matchup state
-                  </p>
-                  <p style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 700 }}>
-                    {currentMatchup?.state ?? "pending"}
-                  </p>
-                </div>
+                  >
+                    <p style={{ margin: 0, fontSize: 12, textTransform: "uppercase", color: "#6c727f" }}>
+                      Votes in
+                    </p>
+                    <p style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 700 }}>
+                      {liveVotes.total}/{signedInCount}
+                    </p>
+                  </div>
               </div>
             </div>
           </div>
