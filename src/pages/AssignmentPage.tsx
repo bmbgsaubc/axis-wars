@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { auth, db, functions } from "../lib/firebase";
+import { auth, db, ensureAnonAuth, functions } from "../lib/firebase";
 import { useNavigate } from "react-router-dom";
 
 type SubmissionAssignment = {
@@ -29,60 +29,70 @@ export default function AssignmentPage() {
   const [yText, setYText] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const gameId = localStorage.getItem("gameId")!;
 
   async function loadCurrentSubmission() {
-    setLoading(true);
+    try {
+      setLoading(true);
+      setError("");
+      await ensureAnonAuth();
 
-    const gameSnap = await getDoc(doc(db, "games", gameId));
-    const roundId = gameSnap.data()?.currentRoundId as string | undefined;
-    if (!roundId) {
+      const gameSnap = await getDoc(doc(db, "games", gameId));
+      const roundId = gameSnap.data()?.currentRoundId as string | undefined;
+      if (!roundId) {
+        setSubmission(null);
+        setFigure(null);
+        setLoading(false);
+        return;
+      }
+
+      const submissionsSnap = await getDocs(
+        query(
+          collection(db, "games", gameId, "rounds", roundId, "submissions"),
+          orderBy("sequenceNumber")
+        )
+      );
+
+      const mySubmissions = submissionsSnap.docs
+        .map((submissionDoc) => ({
+          id: submissionDoc.id,
+          roundId,
+          ...(submissionDoc.data() as Omit<SubmissionAssignment, "id" | "roundId">),
+        }))
+        .filter((submissionDoc) => submissionDoc.playerUid === auth.currentUser?.uid)
+        .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+
+      const nextSubmission = mySubmissions.find((submissionDoc) => submissionDoc.complete !== true);
+
+      if (!nextSubmission) {
+        setSubmission(null);
+        setFigure(null);
+        setLoading(false);
+        navigate("/submitted");
+        return;
+      }
+
+      setSubmission(nextSubmission);
+      setXText(nextSubmission.xText ?? "");
+      setYText(nextSubmission.yText ?? "");
+
+      const figSnap = await getDoc(doc(db, "figures", nextSubmission.figureId));
+      if (figSnap.exists()) {
+        setFigure(figSnap.data() as FigureDoc);
+      } else {
+        setFigure(null);
+      }
+    } catch (nextError: any) {
+      console.error(nextError);
+      setError(nextError?.message || "Failed to load your assigned figure.");
       setSubmission(null);
       setFigure(null);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const submissionsSnap = await getDocs(
-      query(
-        collection(db, "games", gameId, "rounds", roundId, "submissions"),
-        orderBy("sequenceNumber")
-      )
-    );
-
-    const mySubmissions = submissionsSnap.docs
-      .map((submissionDoc) => ({
-        id: submissionDoc.id,
-        roundId,
-        ...(submissionDoc.data() as Omit<SubmissionAssignment, "id" | "roundId">),
-      }))
-      .filter((submissionDoc) => submissionDoc.playerUid === auth.currentUser?.uid)
-      .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
-
-    const nextSubmission = mySubmissions.find((submissionDoc) => submissionDoc.complete !== true);
-
-    if (!nextSubmission) {
-      setSubmission(null);
-      setFigure(null);
-      setLoading(false);
-      navigate("/submitted");
-      return;
-    }
-
-    setSubmission(nextSubmission);
-    setXText(nextSubmission.xText ?? "");
-    setYText(nextSubmission.yText ?? "");
-
-    const figSnap = await getDoc(doc(db, "figures", nextSubmission.figureId));
-    if (figSnap.exists()) {
-      setFigure(figSnap.data() as FigureDoc);
-    } else {
-      setFigure(null);
-    }
-
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -94,6 +104,7 @@ export default function AssignmentPage() {
 
     try {
       setSubmitting(true);
+      setError("");
       const fn = httpsCallable(functions, "submitAxis");
       await fn({
         gameId,
@@ -104,6 +115,9 @@ export default function AssignmentPage() {
       });
 
       await loadCurrentSubmission();
+    } catch (nextError: any) {
+      console.error(nextError);
+      setError(nextError?.message || "Failed to submit your answers.");
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +155,7 @@ export default function AssignmentPage() {
         }}
       >
         <div style={{ width: "100%", maxWidth: 420, textAlign: "center", color: "#444" }}>
-          Loading your figure...
+          {error || "Loading your figure..."}
         </div>
       </div>
     );
@@ -249,6 +263,7 @@ export default function AssignmentPage() {
         >
           {submission.sequenceNumber === 1 ? "Submit and continue" : "Submit"}
         </button>
+        {error ? <p style={{ margin: 0, color: "#666" }}>{error}</p> : null}
       </div>
     </div>
   );

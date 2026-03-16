@@ -26,6 +26,11 @@ service cloud.firestore {
           allow write: if false;
         }
 
+        match /submissions/{submissionId} {
+          allow read: if signedIn();
+          allow write: if false;
+        }
+
         match /matchups/{matchupId} {
           allow read: if signedIn();
           allow write: if false;
