@@ -153,6 +153,50 @@ export default function HostPage() {
     }
   }
 
+  async function closeVotingFor(matchupId: string) {
+    try {
+      await ensureAnonAuth();
+
+      if (!game?.currentRoundId) {
+        throw new Error("No current round.");
+      }
+
+      const fn = httpsCallable(functions, "closeMatchupVoting");
+      await fn({
+        gameId,
+        roundId: game.currentRoundId,
+        matchupId,
+      });
+
+      setMessage(`Closed voting for ${matchupId}.`);
+    } catch (error: any) {
+      console.error(error);
+      setMessage(error?.message || `Failed to close ${matchupId}.`);
+    }
+  }
+
+  async function openMatchup(matchupId: string) {
+    try {
+      await ensureAnonAuth();
+
+      if (!game?.currentRoundId) {
+        throw new Error("No current round.");
+      }
+
+      const fn = httpsCallable(functions, "openMatchupVoting");
+      await fn({
+        gameId,
+        roundId: game.currentRoundId,
+        matchupId,
+      });
+
+      setMessage(`Opened voting for ${matchupId}.`);
+    } catch (error: any) {
+      console.error(error);
+      setMessage(error?.message || `Failed to open ${matchupId}.`);
+    }
+  }
+
   async function openNextMatchup() {
     try {
       await ensureAnonAuth();
@@ -237,6 +281,14 @@ export default function HostPage() {
                 {typeof m.votesA === "number" && typeof m.votesB === "number"
                   ? ` — votes ${m.votesA} : ${m.votesB}`
                   : ""}
+                {" "}
+                {m.state === "pending" ? (
+                  <button onClick={() => openMatchup(m.id)}>Open</button>
+                ) : null}
+                {" "}
+                {m.state === "live" ? (
+                  <button onClick={() => closeVotingFor(m.id)}>Close</button>
+                ) : null}
               </li>
             ))}
           </ul>

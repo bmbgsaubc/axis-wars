@@ -45,6 +45,19 @@ function buildDerangement(size: number): number[] {
   return attempt;
 }
 
+async function summarizeRoundMatchupStates(roundRef: admin.firestore.DocumentReference) {
+  const matchupsSnap = await roundRef.collection("matchups").get();
+  const states = matchupsSnap.docs.map((doc) => doc.data().state as string);
+
+  return {
+    total: matchupsSnap.size,
+    pending: states.filter((state) => state === "pending").length,
+    live: states.filter((state) => state === "live").length,
+    closed: states.filter((state) => state === "closed").length,
+    allClosed: states.length > 0 && states.every((state) => state === "closed"),
+  };
+}
+
 export const startRound = onCall(async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Must be signed in");
@@ -67,14 +80,25 @@ export const startRound = onCall(async (req) => {
 
   const currentRoundId = game.currentRoundId;
   if (currentRoundId) {
-    const currentRoundSnap = await gameRef.collection("rounds").doc(currentRoundId).get();
+    const currentRoundRef = gameRef.collection("rounds").doc(currentRoundId);
+    const currentRoundSnap = await currentRoundRef.get();
     if (currentRoundSnap.exists) {
       const currentRound = currentRoundSnap.data();
       if (currentRound?.status !== "complete") {
-        throw new HttpsError(
-          "failed-precondition",
-          `Current round (${currentRoundId}) is not complete yet.`
-        );
+        const matchupSummary = await summarizeRoundMatchupStates(currentRoundRef);
+
+        if (matchupSummary.allClosed) {
+          await currentRoundRef.update({status: "complete"});
+          await gameRef.update({
+            status: "leaderboard",
+            currentMatchupId: null,
+          });
+        } else {
+          throw new HttpsError(
+            "failed-precondition",
+            `Current round (${currentRoundId}) is not complete yet: ${matchupSummary.pending} pending, ${matchupSummary.live} live.`
+          );
+        }
       }
     }
   }
@@ -338,7 +362,21 @@ export const openMatchupVoting = onCall(async (req) => {
     throw new HttpsError("permission-denied", "Only host can do this");
   }
 
-  const matchupRef = gameRef.collection("rounds").doc(roundId).collection("matchups").doc(matchupId);
+  const roundRef = gameRef.collection("rounds").doc(roundId);
+  const liveMatchupsSnap = await roundRef
+    .collection("matchups")
+    .where("state", "==", "live")
+    .get();
+
+  const otherLiveMatchup = liveMatchupsSnap.docs.find((doc) => doc.id !== matchupId);
+  if (otherLiveMatchup) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Close the current live matchup (${otherLiveMatchup.id}) before opening another one.`
+    );
+  }
+
+  const matchupRef = roundRef.collection("matchups").doc(matchupId);
   await matchupRef.update({ state: "live" });
   await gameRef.update({
     status: "voting",
