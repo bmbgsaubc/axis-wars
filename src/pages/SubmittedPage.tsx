@@ -30,43 +30,29 @@ export default function SubmittedPage() {
         return;
       }
 
-      const pairsSnap = await getDocs(
-        query(collection(db, "games", gameId, "rounds", data.currentRoundId, "pairs"))
+      const submissionsSnap = await getDocs(
+        query(collection(db, "games", gameId, "rounds", data.currentRoundId, "submissions"))
       );
 
-      const myPair = pairsSnap.docs.find((pairDoc) => {
-        const pair = pairDoc.data();
-        return (
-          pair.memberAUid === auth.currentUser?.uid ||
-          pair.memberBUid === auth.currentUser?.uid
-        );
-      });
+      const mySubmissions = submissionsSnap.docs
+        .map((submissionDoc) => submissionDoc.data())
+        .filter((submission) => submission.playerUid === auth.currentUser?.uid);
 
-      if (!myPair) {
+      const hasPendingSubmission = mySubmissions.some((submission) => submission.complete !== true);
+
+      if (hasPendingSubmission) {
         navigate("/assignment");
         return;
       }
 
-      const pair = myPair.data();
-      const mySubmittedText =
-        pair.memberAUid === auth.currentUser?.uid
-          ? pair.memberARole === "x"
-            ? pair.xText
-            : pair.yText
-          : pair.memberBRole === "x"
-            ? pair.xText
-            : pair.yText;
+      const completedCount = submissionsSnap.docs.filter(
+        (submissionDoc) => submissionDoc.data().complete === true
+      ).length;
 
-      if (!mySubmittedText) {
-        navigate("/assignment");
-        return;
-      }
-
-      const completedCount = pairsSnap.docs.filter((pairDoc) => pairDoc.data().complete === true).length;
       setMessage(
-        completedCount === pairsSnap.size
+        completedCount === submissionsSnap.size
           ? "All submissions are in. Opening voting now."
-          : `Waiting for submissions: ${completedCount}/${pairsSnap.size} pairs ready.`
+          : `Waiting for submissions: ${completedCount}/${submissionsSnap.size} graphs ready.`
       );
     });
 

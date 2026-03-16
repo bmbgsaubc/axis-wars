@@ -1,18 +1,16 @@
 import { useEffect, useState } from "react";
-import { collection, doc, getDoc, getDocs, query } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "../lib/firebase";
 import { useNavigate } from "react-router-dom";
 
-type PairAssignment = {
+type SubmissionAssignment = {
   id: string;
   roundId: string;
   figureId: string;
-  memberAUid: string;
-  memberBUid: string;
-  memberARole: "x" | "y";
-  memberBRole: "x" | "y";
+  playerUid: string;
   matchupId: string;
+  sequenceNumber: number;
   xText: string | null;
   yText: string | null;
   complete: boolean;
@@ -25,87 +23,93 @@ type FigureDoc = {
 };
 
 export default function AssignmentPage() {
-  const [pair, setPair] = useState<PairAssignment | null>(null);
+  const [submission, setSubmission] = useState<SubmissionAssignment | null>(null);
   const [figure, setFigure] = useState<FigureDoc | null>(null);
-  const [text, setText] = useState("");
+  const [xText, setXText] = useState("");
+  const [yText, setYText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const gameId = localStorage.getItem("gameId")!;
 
-  useEffect(() => {
-    async function load() {
-      const gameSnap = await getDoc(doc(db, "games", gameId));
-      const roundId = gameSnap.data()?.currentRoundId as string | undefined;
-      if (!roundId) return;
+  async function loadCurrentSubmission() {
+    setLoading(true);
 
-      const pairsSnap = await getDocs(
-        query(collection(db, "games", gameId, "rounds", roundId, "pairs"))
-      );
-
-      const myPairDoc = pairsSnap.docs.find((d) => {
-        const p = d.data();
-        return (
-          p.memberAUid === auth.currentUser?.uid ||
-          p.memberBUid === auth.currentUser?.uid
-        );
-      });
-
-      if (!myPairDoc) return;
-
-      const data = myPairDoc.data();
-
-      const pairData: PairAssignment = {
-        id: myPairDoc.id,
-        roundId,
-        figureId: data.figureId,
-        memberAUid: data.memberAUid,
-        memberBUid: data.memberBUid,
-        memberARole: data.memberARole,
-        memberBRole: data.memberBRole,
-        matchupId: data.matchupId,
-        xText: data.xText ?? null,
-        yText: data.yText ?? null,
-        complete: data.complete ?? false,
-      };
-
-      const uid = auth.currentUser?.uid;
-      const myRoleText =
-        pairData.memberAUid === uid
-          ? pairData.memberARole === "x"
-            ? pairData.xText
-            : pairData.yText
-          : pairData.memberBRole === "x"
-            ? pairData.xText
-            : pairData.yText;
-
-      if (myRoleText) {
-        navigate("/submitted");
-        return;
-      }
-
-      setPair(pairData);
-
-      const figSnap = await getDoc(doc(db, "figures", pairData.figureId));
-      if (figSnap.exists()) {
-        setFigure(figSnap.data() as FigureDoc);
-      }
+    const gameSnap = await getDoc(doc(db, "games", gameId));
+    const roundId = gameSnap.data()?.currentRoundId as string | undefined;
+    if (!roundId) {
+      setSubmission(null);
+      setFigure(null);
+      setLoading(false);
+      return;
     }
 
-    load();
+    const submissionsSnap = await getDocs(
+      query(
+        collection(db, "games", gameId, "rounds", roundId, "submissions"),
+        orderBy("sequenceNumber")
+      )
+    );
+
+    const mySubmissions = submissionsSnap.docs
+      .map((submissionDoc) => ({
+        id: submissionDoc.id,
+        roundId,
+        ...(submissionDoc.data() as Omit<SubmissionAssignment, "id" | "roundId">),
+      }))
+      .filter((submissionDoc) => submissionDoc.playerUid === auth.currentUser?.uid)
+      .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+
+    const nextSubmission = mySubmissions.find((submissionDoc) => submissionDoc.complete !== true);
+
+    if (!nextSubmission) {
+      setSubmission(null);
+      setFigure(null);
+      setLoading(false);
+      navigate("/submitted");
+      return;
+    }
+
+    setSubmission(nextSubmission);
+    setXText(nextSubmission.xText ?? "");
+    setYText(nextSubmission.yText ?? "");
+
+    const figSnap = await getDoc(doc(db, "figures", nextSubmission.figureId));
+    if (figSnap.exists()) {
+      setFigure(figSnap.data() as FigureDoc);
+    } else {
+      setFigure(null);
+    }
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadCurrentSubmission();
   }, [gameId]);
 
   async function submit() {
-    if (!pair) return;
-    const fn = httpsCallable(functions, "submitAxis");
-    await fn({
-      gameId,
-      roundId: pair.roundId,
-      text,
-    });
-    navigate("/submitted");
+    if (!submission) return;
+
+    try {
+      setSubmitting(true);
+      const fn = httpsCallable(functions, "submitAxis");
+      await fn({
+        gameId,
+        roundId: submission.roundId,
+        submissionId: submission.id,
+        xText,
+        yText,
+      });
+
+      await loadCurrentSubmission();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  if (!pair || !figure) {
+  if (loading) {
     return (
       <div
         style={{
@@ -124,8 +128,24 @@ export default function AssignmentPage() {
     );
   }
 
-  const uid = auth.currentUser!.uid;
-  const role = pair.memberAUid === uid ? pair.memberARole : pair.memberBRole;
+  if (!submission || !figure) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#fff",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "24px 20px",
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: 420, textAlign: "center", color: "#444" }}>
+          Loading your figure...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -141,7 +161,7 @@ export default function AssignmentPage() {
       <div
         style={{
           width: "100%",
-          maxWidth: 460,
+          maxWidth: 480,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -161,7 +181,7 @@ export default function AssignmentPage() {
             objectFit: "cover",
           }}
         />
-        <div style={{ maxWidth: 340 }}>
+        <div style={{ maxWidth: 360 }}>
           <p
             style={{
               margin: 0,
@@ -171,19 +191,36 @@ export default function AssignmentPage() {
               color: "#777",
             }}
           >
-            Your prompt
+            Figure {submission.sequenceNumber} of 2
           </p>
           <h2 style={{ margin: "10px 0 0", fontSize: 28, color: "#111" }}>
-            Assign the {role.toUpperCase()} axis
+            Name both axes for this figure
           </h2>
         </div>
         <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={`Enter ${role.toUpperCase()}-axis title`}
+          value={xText}
+          onChange={(event) => setXText(event.target.value)}
+          placeholder="Enter X-axis title"
           style={{
             width: "85%",
-            maxWidth: 320,
+            maxWidth: 340,
+            height: 52,
+            padding: "0 18px",
+            border: "1px solid #d7d7d7",
+            borderRadius: 16,
+            fontSize: 16,
+            color: "#111",
+            background: "#fff",
+            textAlign: "center",
+          }}
+        />
+        <input
+          value={yText}
+          onChange={(event) => setYText(event.target.value)}
+          placeholder="Enter Y-axis title"
+          style={{
+            width: "85%",
+            maxWidth: 340,
             height: 52,
             padding: "0 18px",
             border: "1px solid #d7d7d7",
@@ -196,21 +233,21 @@ export default function AssignmentPage() {
         />
         <button
           onClick={submit}
-          disabled={!text.trim()}
+          disabled={!xText.trim() || !yText.trim() || submitting}
           style={{
             width: "85%",
-            maxWidth: 320,
+            maxWidth: 340,
             height: 52,
             border: "none",
             borderRadius: 16,
-            background: !text.trim() ? "#d9d9d9" : "#111",
+            background: !xText.trim() || !yText.trim() || submitting ? "#d9d9d9" : "#111",
             color: "#fff",
             fontSize: 16,
             fontWeight: 600,
             letterSpacing: "0.04em",
           }}
         >
-          Submit
+          {submission.sequenceNumber === 1 ? "Submit and continue" : "Submit"}
         </button>
       </div>
     </div>

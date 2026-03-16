@@ -19,13 +19,11 @@ export type Round = {
   status: "submitting" | "voting" | "complete";
 };
 
-export type Pair = {
-  memberAUid: string;
-  memberBUid: string;
-  memberARole: "x" | "y";
-  memberBRole: "x" | "y";
+export type Submission = {
+  playerUid: string;
   figureId: string;
   matchupId: string;
+  sequenceNumber: 1 | 2;
   xText: string | null;
   yText: string | null;
   complete: boolean;
@@ -33,10 +31,10 @@ export type Pair = {
 
 export type Matchup = {
   figureId: string;
-  pairAId: string;
-  pairBId: string;
+  entryAId: string;
+  entryBId: string;
   state: "pending" | "live" | "closed";
-  winnerPairId: string | null;
+  winnerEntryId: string | null;
   votesA: number;
   votesB: number;
 };

@@ -27,12 +27,12 @@ type PlayerRow = {
   connected: boolean;
 };
 
-type PairRow = {
+type SubmissionRow = {
   id: string;
-  memberAUid: string;
-  memberBUid: string;
+  playerUid: string;
   figureId: string;
   matchupId: string;
+  sequenceNumber: number;
   xText: string | null;
   yText: string | null;
   complete: boolean;
@@ -40,11 +40,11 @@ type PairRow = {
 
 type MatchupRow = {
   id: string;
-  pairAId: string;
-  pairBId: string;
+  entryAId: string;
+  entryBId: string;
   figureId: string;
   state: "pending" | "live" | "closed";
-  winnerPairId: string | null;
+  winnerEntryId: string | null;
   votesA?: number;
   votesB?: number;
 };
@@ -334,7 +334,7 @@ export default function GamePage() {
   const [gameMissing, setGameMissing] = useState(false);
   const [game, setGame] = useState<GameDoc | null>(null);
   const [players, setPlayers] = useState<PlayerRow[]>([]);
-  const [pairs, setPairs] = useState<PairRow[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [matchups, setMatchups] = useState<MatchupRow[]>([]);
   const [figureUrl, setFigureUrl] = useState("");
   const [liveVotes, setLiveVotes] = useState({ a: 0, b: 0, total: 0 });
@@ -417,7 +417,7 @@ export default function GamePage() {
 
   useEffect(() => {
     if (!authReady || !gameId || !game?.currentRoundId) {
-      setPairs([]);
+      setSubmissions([]);
       setMatchups([]);
       setFigureUrl("");
       setLiveVotes({ a: 0, b: 0, total: 0 });
@@ -425,8 +425,8 @@ export default function GamePage() {
     }
 
     const roundId = game.currentRoundId;
-    const pairsQuery = query(
-      collection(db, "games", gameId, "rounds", roundId, "pairs"),
+    const submissionsQuery = query(
+      collection(db, "games", gameId, "rounds", roundId, "submissions"),
       orderBy("__name__")
     );
     const matchupsQuery = query(
@@ -434,11 +434,11 @@ export default function GamePage() {
       orderBy("__name__")
     );
 
-    const unsubPairs = onSnapshot(pairsQuery, (snap) => {
-      setPairs(
-        snap.docs.map((pairDoc) => ({
-          id: pairDoc.id,
-          ...(pairDoc.data() as Omit<PairRow, "id">),
+    const unsubSubmissions = onSnapshot(submissionsQuery, (snap) => {
+      setSubmissions(
+        snap.docs.map((submissionDoc) => ({
+          id: submissionDoc.id,
+          ...(submissionDoc.data() as Omit<SubmissionRow, "id">),
         }))
       );
     });
@@ -453,7 +453,7 @@ export default function GamePage() {
     });
 
     return () => {
-      unsubPairs();
+      unsubSubmissions();
       unsubMatchups();
     };
   }, [authReady, game?.currentRoundId, gameId]);
@@ -463,11 +463,11 @@ export default function GamePage() {
     matchups.find((matchup) => matchup.state === "live") ||
     null;
 
-  const pairA = currentMatchup
-    ? pairs.find((pair) => pair.id === currentMatchup.pairAId) || null
+  const entryA = currentMatchup
+    ? submissions.find((submission) => submission.id === currentMatchup.entryAId) || null
     : null;
-  const pairB = currentMatchup
-    ? pairs.find((pair) => pair.id === currentMatchup.pairBId) || null
+  const entryB = currentMatchup
+    ? submissions.find((submission) => submission.id === currentMatchup.entryBId) || null
     : null;
 
   useEffect(() => {
@@ -511,8 +511,8 @@ export default function GamePage() {
 
       for (const voteDoc of snap.docs) {
         const vote = voteDoc.data();
-        if (vote.votedForPairId === currentMatchup.pairAId) votesA++;
-        if (vote.votedForPairId === currentMatchup.pairBId) votesB++;
+        if (vote.votedForEntryId === currentMatchup.entryAId) votesA++;
+        if (vote.votedForEntryId === currentMatchup.entryBId) votesB++;
       }
 
       setLiveVotes({
@@ -523,15 +523,18 @@ export default function GamePage() {
     });
 
     return () => unsub();
-  }, [authReady, currentMatchup?.id, currentMatchup?.pairAId, currentMatchup?.pairBId, game?.currentRoundId, gameId]);
+  }, [authReady, currentMatchup?.id, currentMatchup?.entryAId, currentMatchup?.entryBId, game?.currentRoundId, gameId]);
 
   const joinUrl = getJoinUrl();
   const signedInCount = players.length;
-  const submittedCount = pairs.reduce((count, pair) => {
-    return count + (pair.xText ? 1 : 0) + (pair.yText ? 1 : 0);
-  }, 0);
-  const totalSubmissions = pairs.length * 2;
-  const readyPairs = pairs.filter((pair) => pair.complete).length;
+  const submittedCount = submissions.filter((submission) => submission.complete).length;
+  const totalSubmissions = submissions.length;
+  const firstPassComplete = submissions.filter(
+    (submission) => submission.sequenceNumber === 1 && submission.complete
+  ).length;
+  const secondPassComplete = submissions.filter(
+    (submission) => submission.sequenceNumber === 2 && submission.complete
+  ).length;
   const currentMatchupNumber = currentMatchup
     ? matchups.findIndex((matchup) => matchup.id === currentMatchup.id) + 1
     : 0;
@@ -539,12 +542,12 @@ export default function GamePage() {
     currentMatchup?.state === "closed" ? currentMatchup.votesA ?? liveVotes.a : liveVotes.a;
   const displayedVotesB =
     currentMatchup?.state === "closed" ? currentMatchup.votesB ?? liveVotes.b : liveVotes.b;
-  const leadingPairId =
+  const leadingEntryId =
     displayedVotesA === displayedVotesB
       ? null
       : displayedVotesA > displayedVotesB
-        ? currentMatchup?.pairAId ?? null
-        : currentMatchup?.pairBId ?? null;
+        ? currentMatchup?.entryAId ?? null
+        : currentMatchup?.entryBId ?? null;
   const stageLabel = formatStage(game?.status, currentMatchup?.state);
   const inputReady = roomCodeInput.trim().length > 0;
 
@@ -992,8 +995,8 @@ export default function GamePage() {
                 lineHeight: 1.5,
               }}
             >
-              You will be paired up, write one axis each, then vote on the best graphs as the
-              round moves along.
+              Each player will complete two full graphs by naming both axes, then the room will
+              vote on the head-to-head results for each figure.
             </p>
           </div>
 
@@ -1095,14 +1098,14 @@ export default function GamePage() {
                 lineHeight: 1.5,
               }}
             >
-              Everyone should submit their assigned axis on their own device, then wait for the
-              vote phase to open automatically.
+              Everyone should finish both assigned figures on their own device. Voting will open
+              automatically once all graphs are ready.
             </p>
           </div>
 
           <ProgressCard
             title={`${submittedCount} submitted`}
-            subtitle={`${readyPairs}/${pairs.length || 0} pairs fully ready`}
+            subtitle={`${firstPassComplete}/${signedInCount} first-pass and ${secondPassComplete}/${signedInCount} second-pass graphs done`}
             current={submittedCount}
             total={totalSubmissions || 1}
           />
@@ -1180,7 +1183,7 @@ export default function GamePage() {
             </div>
           </div>
 
-          {currentMatchup && pairA && pairB && figureUrl ? (
+          {currentMatchup && entryA && entryB && figureUrl ? (
             <div
               style={{
                 display: "grid",
@@ -1189,25 +1192,25 @@ export default function GamePage() {
               }}
             >
               <FigureDisplay
-                title="Pair A"
+                title="Graph A"
                 imageUrl={figureUrl}
-                xText={pairA.xText || "Pending"}
-                yText={pairA.yText || "Pending"}
+                xText={entryA.xText || "Pending"}
+                yText={entryA.yText || "Pending"}
                 votes={displayedVotesA}
                 highlight={
-                  currentMatchup.winnerPairId === currentMatchup.pairAId ||
-                  leadingPairId === currentMatchup.pairAId
+                  currentMatchup.winnerEntryId === currentMatchup.entryAId ||
+                  leadingEntryId === currentMatchup.entryAId
                 }
               />
               <FigureDisplay
-                title="Pair B"
+                title="Graph B"
                 imageUrl={figureUrl}
-                xText={pairB.xText || "Pending"}
-                yText={pairB.yText || "Pending"}
+                xText={entryB.xText || "Pending"}
+                yText={entryB.yText || "Pending"}
                 votes={displayedVotesB}
                 highlight={
-                  currentMatchup.winnerPairId === currentMatchup.pairBId ||
-                  leadingPairId === currentMatchup.pairBId
+                  currentMatchup.winnerEntryId === currentMatchup.entryBId ||
+                  leadingEntryId === currentMatchup.entryBId
                 }
               />
             </div>

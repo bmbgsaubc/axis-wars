@@ -4,15 +4,15 @@ import { auth, db, functions, ensureAnonAuth } from "../lib/firebase";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
-type PairDoc = {
+type SubmissionDoc = {
   figureId: string;
   xText: string | null;
   yText: string | null;
 };
 
 type MatchupDoc = {
-  pairAId: string;
-  pairBId: string;
+  entryAId: string;
+  entryBId: string;
   figureId: string;
   state: string;
 };
@@ -129,8 +129,8 @@ export default function VotePage() {
   const [roundId, setRoundId] = useState("");
   const [matchupId, setMatchupId] = useState("");
   const [matchup, setMatchup] = useState<MatchupDoc | null>(null);
-  const [pairA, setPairA] = useState<PairDoc | null>(null);
-  const [pairB, setPairB] = useState<PairDoc | null>(null);
+  const [entryA, setEntryA] = useState<SubmissionDoc | null>(null);
+  const [entryB, setEntryB] = useState<SubmissionDoc | null>(null);
   const [figureUrl, setFigureUrl] = useState("");
   const [votesA, setVotesA] = useState(0);
   const [votesB, setVotesB] = useState(0);
@@ -186,16 +186,16 @@ export default function VotePage() {
 
       setMatchup(matchupData);
 
-      const pairASnap = await getDoc(
-        doc(db, "games", gameId, "rounds", game.currentRoundId, "pairs", matchupData.pairAId)
+      const entryASnap = await getDoc(
+        doc(db, "games", gameId, "rounds", game.currentRoundId, "submissions", matchupData.entryAId)
       );
-      const pairBSnap = await getDoc(
-        doc(db, "games", gameId, "rounds", game.currentRoundId, "pairs", matchupData.pairBId)
+      const entryBSnap = await getDoc(
+        doc(db, "games", gameId, "rounds", game.currentRoundId, "submissions", matchupData.entryBId)
       );
       const figSnap = await getDoc(doc(db, "figures", matchupData.figureId));
 
-      setPairA(pairASnap.data() as PairDoc);
-      setPairB(pairBSnap.data() as PairDoc);
+      setEntryA(entryASnap.data() as SubmissionDoc);
+      setEntryB(entryBSnap.data() as SubmissionDoc);
       setFigureUrl((figSnap.data() as FigureDoc).imageUrl);
       setLoading(false);
     });
@@ -219,8 +219,8 @@ export default function VotePage() {
 
       for (const docSnap of snap.docs) {
         const vote = docSnap.data();
-        if (vote.votedForPairId === matchup.pairAId) a++;
-        if (vote.votedForPairId === matchup.pairBId) b++;
+        if (vote.votedForEntryId === matchup.entryAId) a++;
+        if (vote.votedForEntryId === matchup.entryBId) b++;
         if (vote.voterUid === uid) nextHasVoted = true;
       }
 
@@ -232,7 +232,7 @@ export default function VotePage() {
     return () => unsub();
   }, [gameId, roundId, matchupId, matchup]);
 
-  async function voteFor(pairId: string) {
+  async function voteFor(entryId: string) {
     try {
       await ensureAnonAuth();
       const fn = httpsCallable(functions, "castVote");
@@ -240,7 +240,7 @@ export default function VotePage() {
         gameId,
         roundId,
         matchupId,
-        votedForPairId: pairId,
+        votedForEntryId: entryId,
       });
       setHasVoted(true);
       setMessage("Vote submitted.");
@@ -269,7 +269,7 @@ export default function VotePage() {
     );
   }
 
-  if (!matchup || !pairA || !pairB) {
+  if (!matchup || !entryA || !entryB) {
     return (
       <div
         style={{
@@ -336,24 +336,24 @@ export default function VotePage() {
             flexWrap: "wrap",
           }}
         >
-        <FigureCard
-          title="Pair A"
-          imageUrl={figureUrl}
-          xText={pairA.xText || ""}
-          yText={pairA.yText || ""}
-          votes={votesA}
-          onVote={() => voteFor(matchup.pairAId)}
-          disabled={hasVoted}
-        />
-        <FigureCard
-          title="Pair B"
-          imageUrl={figureUrl}
-          xText={pairB.xText || ""}
-          yText={pairB.yText || ""}
-          votes={votesB}
-          onVote={() => voteFor(matchup.pairBId)}
-          disabled={hasVoted}
-        />
+          <FigureCard
+            title="Graph A"
+            imageUrl={figureUrl}
+            xText={entryA.xText || ""}
+            yText={entryA.yText || ""}
+            votes={votesA}
+            onVote={() => voteFor(matchup.entryAId)}
+            disabled={hasVoted}
+          />
+          <FigureCard
+            title="Graph B"
+            imageUrl={figureUrl}
+            xText={entryB.xText || ""}
+            yText={entryB.yText || ""}
+            votes={votesB}
+            onVote={() => voteFor(matchup.entryBId)}
+            disabled={hasVoted}
+          />
         </div>
       </div>
     </div>

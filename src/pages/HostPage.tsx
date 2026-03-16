@@ -20,11 +20,11 @@ type GameDoc = {
 };
 
 type MatchupDoc = {
-  pairAId: string;
-  pairBId: string;
+  entryAId: string;
+  entryBId: string;
   figureId: string;
   state: "pending" | "live" | "closed";
-  winnerPairId: string | null;
+  winnerEntryId: string | null;
   votesA?: number;
   votesB?: number;
 };
