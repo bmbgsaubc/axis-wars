@@ -1,5 +1,5 @@
 import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { auth, db } from "../lib/firebase";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -9,7 +9,9 @@ export default function WaitingPage() {
   const gameId = localStorage.getItem("gameId")!;
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "games", gameId), (snap) => {
+    const unsubs: Array<() => void> = [];
+
+    const unsubGame = onSnapshot(doc(db, "games", gameId), (snap) => {
       const data = snap.data();
       if (!data) return;
       setStatus(data.status);
@@ -21,7 +23,22 @@ export default function WaitingPage() {
       }
     });
 
-    return () => unsub();
+    unsubs.push(unsubGame);
+
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      const unsubPlayer = onSnapshot(doc(db, "games", gameId, "players", uid), (snap) => {
+        if (!snap.exists()) {
+          navigate("/", { replace: true });
+        }
+      });
+
+      unsubs.push(unsubPlayer);
+    }
+
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+    };
   }, [gameId, navigate]);
 
   return (

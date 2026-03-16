@@ -276,6 +276,42 @@ export const endGame = onCall(async (req) => {
   return { ok: true };
 });
 
+export const restartGame = onCall(async (req) => {
+  const uid = req.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Must be signed in");
+
+  const { gameId } = req.data as { gameId: string };
+  if (!gameId) throw new HttpsError("invalid-argument", "Missing gameId");
+
+  const gameRef = db.collection("games").doc(gameId);
+  const gameSnap = await gameRef.get();
+
+  if (!gameSnap.exists) {
+    throw new HttpsError("not-found", "Game not found");
+  }
+
+  const game = gameSnap.data()!;
+  if (game.hostUid !== uid) {
+    throw new HttpsError("permission-denied", "Only host can restart the game");
+  }
+
+  await db.recursiveDelete(gameRef.collection("rounds"));
+  await db.recursiveDelete(gameRef.collection("players"));
+
+  await gameRef.set(
+    {
+      currentMatchupId: null,
+      currentRoundId: null,
+      hostUid: "",
+      roundNumber: 0,
+      status: "lobby",
+    },
+    {merge: true}
+  );
+
+  return {ok: true};
+});
+
 export const submitAxis = onCall(async (req) => {
   const uid = req.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Must be signed in");

@@ -26,6 +26,11 @@ export default function SubmittedPage() {
         return;
       }
 
+      if (data.status === "lobby") {
+        navigate("/", { replace: true });
+        return;
+      }
+
       if (data.status !== "submitting" || !data.currentRoundId) {
         return;
       }

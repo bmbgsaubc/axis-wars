@@ -157,6 +157,11 @@ export default function VotePage() {
         return;
       }
 
+      if (game.status === "lobby") {
+        navigate("/", { replace: true });
+        return;
+      }
+
       if (!game.currentRoundId || !game.currentMatchupId) {
         setMessage("No active matchup yet.");
         setLoading(false);

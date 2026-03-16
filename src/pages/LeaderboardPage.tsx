@@ -55,7 +55,7 @@ export default function LeaderboardPage() {
       }
 
       if (data.status === "lobby") {
-        navigate("/waiting");
+        navigate("/", { replace: true });
       }
     });
 

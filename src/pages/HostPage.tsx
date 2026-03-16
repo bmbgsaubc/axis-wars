@@ -127,6 +127,26 @@ export default function HostPage() {
     }
   }
 
+  async function restartGame() {
+    const confirmed = window.confirm(
+      "Restarting will delete all players and rounds, reset the room to lobby, and release the host claim. Continue?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await ensureAnonAuth();
+      const fn = httpsCallable(functions, "restartGame");
+      await fn({ gameId });
+      setMessage("Game restarted. Players must join again and the host must reclaim the room.");
+    } catch (error: any) {
+      console.error(error);
+      setMessage(error?.message || "Failed to restart game.");
+    }
+  }
+
   async function closeCurrentVoting() {
     try {
       await ensureAnonAuth();
@@ -251,6 +271,7 @@ export default function HostPage() {
         <button onClick={closeCurrentVoting}>Close Current Voting</button>
         <button onClick={openNextMatchup}>Open Next Matchup</button>
         <button onClick={endGame}>End Game</button>
+        <button onClick={restartGame}>RESTART</button>
       </div>
 
       {message && <p>{message}</p>}

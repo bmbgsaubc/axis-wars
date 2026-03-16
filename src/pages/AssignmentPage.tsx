@@ -46,6 +46,7 @@ export default function AssignmentPage() {
         setSubmission(null);
         setFigure(null);
         setLoading(false);
+        navigate("/", { replace: true });
         return;
       }
 

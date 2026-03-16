@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function JoinPage() {
   const [name, setName] = useState("");
-  const [gameId, setGameId] = useState("demo-game");
+  const [gameId, setGameId] = useState(localStorage.getItem("gameId") || "demo-game");
   const navigate = useNavigate();
 
   async function join() {
