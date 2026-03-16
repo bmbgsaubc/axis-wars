@@ -259,7 +259,7 @@ export default function VotePage() {
 
       const labelWidth = Math.ceil(labelEl.getBoundingClientRect().width);
       const anchoredOffset = 40;
-      const visualClearance = 16;
+      const visualClearance = 32;
       setMatchupColumnGap(Math.max(defaultGap, labelWidth - anchoredOffset + visualClearance));
     }
 
