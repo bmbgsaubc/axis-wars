@@ -69,23 +69,6 @@ function FigureCard({
         <div
           style={{
             position: "absolute",
-            bottom: 12,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "rgba(255,255,255,0.9)",
-            padding: "8px 12px",
-            borderRadius: 12,
-            fontWeight: 600,
-            fontSize: 14,
-            textAlign: "center",
-            minWidth: 120,
-          }}
-        >
-          {xText}
-        </div>
-        <div
-          style={{
-            position: "absolute",
             top: "50%",
             left: -30,
             transform: "translateY(-50%) rotate(-90deg)",
@@ -99,6 +82,20 @@ function FigureCard({
         >
           {yText}
         </div>
+      </div>
+      <div
+        style={{
+          marginTop: 14,
+          background: "rgba(255,255,255,0.95)",
+          padding: "12px 16px",
+          borderRadius: 14,
+          fontWeight: 700,
+          fontSize: 20,
+          textAlign: "center",
+          color: "#111",
+        }}
+      >
+        {xText}
       </div>
       <button
         onClick={onVote}

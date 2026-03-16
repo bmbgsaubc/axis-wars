@@ -285,25 +285,6 @@ function FigureDisplay({
         <div
           style={{
             position: "absolute",
-            left: "50%",
-            bottom: 20,
-            transform: "translateX(-50%)",
-            maxWidth: "70%",
-            background: "rgba(255,255,255,0.95)",
-            color: "#111111",
-            padding: "12px 18px",
-            borderRadius: 16,
-            fontSize: 18,
-            fontWeight: 700,
-            textAlign: "center",
-            boxShadow: "0 12px 30px rgba(17, 17, 17, 0.12)",
-          }}
-        >
-          {xText}
-        </div>
-        <div
-          style={{
-            position: "absolute",
             top: "50%",
             left: 40,
             transform: "translate(-100%, -50%)",
@@ -321,6 +302,20 @@ function FigureDisplay({
         >
           {yText}
         </div>
+      </div>
+      <div
+        style={{
+          background: "rgba(255,255,255,0.95)",
+          color: "#111111",
+          padding: "14px 18px",
+          borderRadius: 18,
+          fontSize: 24,
+          fontWeight: 700,
+          textAlign: "center",
+          boxShadow: "0 12px 30px rgba(17, 17, 17, 0.08)",
+        }}
+      >
+        {xText}
       </div>
     </div>
   );
