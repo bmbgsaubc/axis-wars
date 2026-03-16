@@ -652,7 +652,7 @@ export default function GamePage() {
           }}
         >
           <img
-            src={`${import.meta.env.BASE_URL}logo.png`}
+            src={`${import.meta.env.BASE_URL}fig-figures.png`}
             alt="Axis Wars"
             style={{
               width: "100%",
@@ -745,7 +745,7 @@ export default function GamePage() {
           }}
         >
           <img
-            src={`${import.meta.env.BASE_URL}logo.png`}
+            src={`${import.meta.env.BASE_URL}fig-figures.png`}
             alt="Axis Wars"
             style={{
               width: "100%",
@@ -853,7 +853,7 @@ export default function GamePage() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
           <img
-            src={`${import.meta.env.BASE_URL}logo.png`}
+            src={`${import.meta.env.BASE_URL}fig-figures.png`}
             alt="Axis Wars"
             style={{
               width: "100%",

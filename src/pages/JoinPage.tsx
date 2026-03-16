@@ -45,7 +45,7 @@ export default function JoinPage() {
         }}
       >
         <img
-          src={`${import.meta.env.BASE_URL}logo.png`}
+          src={`${import.meta.env.BASE_URL}fig-figures.png`}
           alt="Axis Wars"
           style={{
             width: "100%",
