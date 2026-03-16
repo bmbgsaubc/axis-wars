@@ -70,14 +70,19 @@ function FigureCard({
           style={{
             position: "absolute",
             top: "50%",
-            left: -30,
-            transform: "translateY(-50%) rotate(-90deg)",
-            transformOrigin: "left top",
-            background: "rgba(255,255,255,0.9)",
-            padding: "8px 12px",
-            borderRadius: 12,
-            fontWeight: 600,
-            fontSize: 14,
+            left: 40,
+            transform: "translate(-100%, -50%)",
+            maxWidth: "min(260px, calc(100vw - 120px))",
+            background: "rgba(255,255,255,0.95)",
+            color: "#111",
+            padding: "12px 18px",
+            borderRadius: 16,
+            fontWeight: 700,
+            fontSize: 18,
+            textAlign: "right",
+            whiteSpace: "normal",
+            overflowWrap: "anywhere",
+            lineHeight: 1.2,
           }}
         >
           {yText}

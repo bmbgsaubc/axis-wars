@@ -288,7 +288,7 @@ function FigureDisplay({
             top: "50%",
             left: 40,
             transform: "translate(-100%, -50%)",
-            maxWidth: 260,
+            maxWidth: "min(260px, calc(100vw - 120px))",
             background: "rgba(255,255,255,0.95)",
             color: "#111111",
             padding: "12px 18px",
@@ -296,7 +296,9 @@ function FigureDisplay({
             fontSize: 18,
             fontWeight: 700,
             textAlign: "right",
-            whiteSpace: "nowrap",
+            whiteSpace: "normal",
+            overflowWrap: "anywhere",
+            lineHeight: 1.2,
             boxShadow: "0 12px 30px rgba(17, 17, 17, 0.12)",
           }}
         >
