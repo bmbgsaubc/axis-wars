@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type Ref } from "react";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions, ensureAnonAuth } from "../lib/firebase";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
@@ -29,6 +29,7 @@ function FigureCard({
   votes,
   onVote,
   disabled,
+  yLabelRef,
 }: {
   title: string;
   imageUrl: string;
@@ -37,6 +38,7 @@ function FigureCard({
   votes: number;
   onVote: () => void;
   disabled: boolean;
+  yLabelRef?: Ref<HTMLDivElement>;
 }) {
   return (
     <div style={{ width: "100%", maxWidth: 340 }}>
@@ -67,6 +69,7 @@ function FigureCard({
           }}
         />
         <div
+          ref={yLabelRef}
           style={{
             position: "absolute",
             top: "50%",
@@ -127,6 +130,7 @@ function FigureCard({
 export default function VotePage() {
   const gameId = localStorage.getItem("gameId") || "demo-game";
   const navigate = useNavigate();
+  const rightAxisLabelRef = useRef<HTMLDivElement | null>(null);
 
   const [roundId, setRoundId] = useState("");
   const [matchupId, setMatchupId] = useState("");
@@ -139,6 +143,7 @@ export default function VotePage() {
   const [hasVoted, setHasVoted] = useState(false);
   const [message, setMessage] = useState("Loading...");
   const [loading, setLoading] = useState(true);
+  const [matchupColumnGap, setMatchupColumnGap] = useState(28);
 
   useEffect(() => {
     async function init() {
@@ -239,6 +244,45 @@ export default function VotePage() {
     return () => unsub();
   }, [gameId, roundId, matchupId, matchup]);
 
+  useLayoutEffect(() => {
+    const currentLabel = rightAxisLabelRef.current;
+    const defaultGap = 28;
+
+    if (!currentLabel) {
+      setMatchupColumnGap(defaultGap);
+      return;
+    }
+
+    function updateGap() {
+      const labelEl = rightAxisLabelRef.current;
+      if (!labelEl) return;
+
+      const labelWidth = Math.ceil(labelEl.getBoundingClientRect().width);
+      const anchoredOffset = 40;
+      const visualClearance = 16;
+      setMatchupColumnGap(Math.max(defaultGap, labelWidth - anchoredOffset + visualClearance));
+    }
+
+    updateGap();
+
+    const handleResize = () => updateGap();
+    window.addEventListener("resize", handleResize);
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            updateGap();
+          });
+
+    resizeObserver?.observe(currentLabel);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      resizeObserver?.disconnect();
+    };
+  }, [entryB?.yText]);
+
   async function voteFor(entryId: string) {
     try {
       await ensureAnonAuth();
@@ -308,7 +352,7 @@ export default function VotePage() {
       <div
         style={{
           width: "100%",
-          maxWidth: 780,
+          maxWidth: 980,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -337,7 +381,8 @@ export default function VotePage() {
           style={{
             width: "100%",
             display: "flex",
-            gap: 28,
+            columnGap: matchupColumnGap,
+            rowGap: 28,
             alignItems: "flex-start",
             justifyContent: "center",
             flexWrap: "wrap",
@@ -360,6 +405,7 @@ export default function VotePage() {
             votes={votesB}
             onVote={() => voteFor(matchup.entryBId)}
             disabled={hasVoted}
+            yLabelRef={rightAxisLabelRef}
           />
         </div>
       </div>

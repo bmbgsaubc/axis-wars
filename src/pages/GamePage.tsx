@@ -269,11 +269,46 @@ function FigureDisplay({
           {votes} vote{votes === 1 ? "" : "s"}
         </div>
       </div>
-      <div style={{ position: "relative" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+        }}
+      >
+        <div
+          style={{
+            flex: "0 1 220px",
+            minWidth: 0,
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "100%",
+              background: "rgba(255,255,255,0.95)",
+              color: "#111111",
+              padding: "12px 18px",
+              borderRadius: 16,
+              fontSize: 18,
+              fontWeight: 700,
+              textAlign: "right",
+              whiteSpace: "normal",
+              overflowWrap: "anywhere",
+              lineHeight: 1.2,
+              boxShadow: "0 12px 30px rgba(17, 17, 17, 0.12)",
+            }}
+          >
+            {yText}
+          </div>
+        </div>
         <img
           src={imageUrl}
           alt={title}
           style={{
+            flex: "1 1 0",
+            minWidth: 0,
             width: "100%",
             maxHeight: 420,
             objectFit: "contain",
@@ -282,28 +317,6 @@ function FigureDisplay({
             borderRadius: 24,
           }}
         />
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: 40,
-            transform: "translate(-100%, -50%)",
-            maxWidth: "min(260px, calc(100vw - 120px))",
-            background: "rgba(255,255,255,0.95)",
-            color: "#111111",
-            padding: "12px 18px",
-            borderRadius: 16,
-            fontSize: 18,
-            fontWeight: 700,
-            textAlign: "right",
-            whiteSpace: "normal",
-            overflowWrap: "anywhere",
-            lineHeight: 1.2,
-            boxShadow: "0 12px 30px rgba(17, 17, 17, 0.12)",
-          }}
-        >
-          {yText}
-        </div>
       </div>
       <div
         style={{
