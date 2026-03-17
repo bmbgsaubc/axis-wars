@@ -124,8 +124,8 @@ function MetricCard({
             margin: compact ? "10px 0 0" : "16px 0 0",
             fontSize: compact
               ? compactValue
-                ? "clamp(0.9rem, 1.2vw, 1.05rem)"
-                : "clamp(1.4rem, 2vw, 1.9rem)"
+                ? "clamp(1.5rem, 2.2vw, 1.9rem)"
+                : "clamp(2.4rem, 3.5vw, 3.2rem)"
               : compactValue
                 ? "clamp(1rem, 1.5vw, 1.25rem)"
                 : "clamp(2rem, 3vw, 2.8rem)",
