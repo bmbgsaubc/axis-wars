@@ -952,11 +952,6 @@ export default function GamePage() {
           }
           compact
         />
-        <MetricCard
-          label="Display sync"
-          value="On"
-          compact
-        />
       </div>
 
       {game?.status === "lobby" ? (

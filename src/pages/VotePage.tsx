@@ -30,6 +30,7 @@ function FigureCard({
   onVote,
   disabled,
   yLabelRef,
+  insetYAxisLabel = false,
 }: {
   title: string;
   imageUrl: string;
@@ -39,7 +40,43 @@ function FigureCard({
   onVote: () => void;
   disabled: boolean;
   yLabelRef?: Ref<HTMLDivElement>;
+  insetYAxisLabel?: boolean;
 }) {
+  const axisLabel = (
+    <div
+      ref={yLabelRef}
+      style={{
+        maxWidth: insetYAxisLabel ? "100%" : "min(260px, calc(100vw - 120px))",
+        background: "rgba(255,255,255,0.95)",
+        color: "#111",
+        padding: "12px 18px",
+        borderRadius: 16,
+        fontWeight: 700,
+        fontSize: 18,
+        textAlign: "right",
+        whiteSpace: "normal",
+        overflowWrap: "anywhere",
+        lineHeight: 1.2,
+      }}
+    >
+      {yText}
+    </div>
+  );
+
+  const figureImage = (
+    <img
+      src={imageUrl}
+      alt={title}
+      style={{
+        width: "100%",
+        minWidth: 0,
+        display: "block",
+        background: "white",
+        borderRadius: 22,
+      }}
+    />
+  );
+
   return (
     <div style={{ width: "100%", maxWidth: 340 }}>
       <h3 style={{ margin: "0 0 12px", fontSize: 22, color: "#111", textAlign: "center" }}>
@@ -57,40 +94,42 @@ function FigureCard({
       >
         Votes: {votes}
       </p>
-      <div style={{ position: "relative", width: "100%" }}>
-        <img
-          src={imageUrl}
-          alt={title}
+      {insetYAxisLabel ? (
+        <div
           style={{
             width: "100%",
-            display: "block",
-            background: "white",
-            borderRadius: 22,
-          }}
-        />
-        <div
-          ref={yLabelRef}
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: 40,
-            transform: "translate(-100%, -50%)",
-            maxWidth: "min(260px, calc(100vw - 120px))",
-            background: "rgba(255,255,255,0.95)",
-            color: "#111",
-            padding: "12px 18px",
-            borderRadius: 16,
-            fontWeight: 700,
-            fontSize: 18,
-            textAlign: "right",
-            whiteSpace: "normal",
-            overflowWrap: "anywhere",
-            lineHeight: 1.2,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
           }}
         >
-          {yText}
+          <div
+            style={{
+              flex: "0 1 clamp(88px, 28vw, 120px)",
+              minWidth: 0,
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            {axisLabel}
+          </div>
+          <div style={{ flex: "1 1 0", minWidth: 0 }}>{figureImage}</div>
         </div>
-      </div>
+      ) : (
+        <div style={{ position: "relative", width: "100%" }}>
+          {figureImage}
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: 40,
+              transform: "translate(-100%, -50%)",
+            }}
+          >
+            {axisLabel}
+          </div>
+        </div>
+      )}
       <div
         style={{
           marginTop: 14,
@@ -144,6 +183,10 @@ export default function VotePage() {
   const [message, setMessage] = useState("Loading...");
   const [loading, setLoading] = useState(true);
   const [matchupColumnGap, setMatchupColumnGap] = useState(28);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1024 : window.innerWidth
+  );
+  const useInsetYAxisLabels = viewportWidth < 720;
 
   useEffect(() => {
     async function init() {
@@ -244,9 +287,26 @@ export default function VotePage() {
     return () => unsub();
   }, [gameId, roundId, matchupId, matchup]);
 
+  useEffect(() => {
+    function handleResize() {
+      setViewportWidth(window.innerWidth);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
   useLayoutEffect(() => {
-    const currentLabel = rightAxisLabelRef.current;
     const defaultGap = 28;
+
+    if (useInsetYAxisLabels) {
+      setMatchupColumnGap(defaultGap);
+      return;
+    }
+
+    const currentLabel = rightAxisLabelRef.current;
 
     if (!currentLabel) {
       setMatchupColumnGap(defaultGap);
@@ -281,7 +341,7 @@ export default function VotePage() {
       window.removeEventListener("resize", handleResize);
       resizeObserver?.disconnect();
     };
-  }, [entryB?.yText]);
+  }, [entryB?.yText, useInsetYAxisLabels]);
 
   async function voteFor(entryId: string) {
     try {
@@ -396,6 +456,7 @@ export default function VotePage() {
             votes={votesA}
             onVote={() => voteFor(matchup.entryAId)}
             disabled={hasVoted}
+            insetYAxisLabel={useInsetYAxisLabels}
           />
           <FigureCard
             title="Graph B"
@@ -406,6 +467,7 @@ export default function VotePage() {
             onVote={() => voteFor(matchup.entryBId)}
             disabled={hasVoted}
             yLabelRef={rightAxisLabelRef}
+            insetYAxisLabel={useInsetYAxisLabels}
           />
         </div>
       </div>
