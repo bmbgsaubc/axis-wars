@@ -101,7 +101,7 @@ function MetricCard({
       style={{
         ...panelStyle("rgba(17, 17, 17, 0.08)"),
         padding: compact ? "14px 16px" : "20px 22px",
-        minHeight: compact ? 96 : 138,
+        minHeight: compact ? 180 : 138,
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
@@ -124,8 +124,8 @@ function MetricCard({
             margin: compact ? "10px 0 0" : "16px 0 0",
             fontSize: compact
               ? compactValue
-                ? "clamp(1.5rem, 2.2vw, 1.9rem)"
-                : "clamp(2.2rem, 3vw, 3rem)"
+                ? "clamp(1.8rem, 3vw, 2.8rem)"   // Join URL
+                : "clamp(4rem, 8vw, 6.5rem)"  
               : compactValue
                 ? "clamp(1.2rem, 1.8vw, 1.5rem)"
                 : "clamp(2.4rem, 3.5vw, 3.2rem)",
