@@ -125,10 +125,10 @@ function MetricCard({
             fontSize: compact
               ? compactValue
                 ? "clamp(1.5rem, 2.2vw, 1.9rem)"
-                : "clamp(2.4rem, 3.5vw, 3.2rem)"
+                : "clamp(2.2rem, 3vw, 3rem)"
               : compactValue
-                ? "clamp(1rem, 1.5vw, 1.25rem)"
-                : "clamp(2rem, 3vw, 2.8rem)",
+                ? "clamp(1.2rem, 1.8vw, 1.5rem)"
+                : "clamp(2.4rem, 3.5vw, 3.2rem)",
             lineHeight: 1,
             color: "#111111",
             wordBreak: "break-word",
